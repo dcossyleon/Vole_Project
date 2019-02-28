@@ -1,0 +1,270 @@
+---
+title: "Looping through SNPs"
+author: "Desiree De Leon"
+date: "2/27/2019"
+output: html_document
+---
+
+# Looping through SNP Data 
+
+
+# Setting up example data
+
+Here I'm going to use a subset of genotype data that we were working with earlier.  
+
+```{r}
+setwd("~/Documents/New R Projects/Vole_Project")
+
+ind <-  read.table(file= "Filtered/filter1.012.indv")
+pos <-  read.table (file= "Filtered/filter1.012.pos")
+g <- read.table(file= "Filtered/filter1.012", sep = "\t", header= FALSE)
+
+
+g <- g[,-1] # Removes index column
+colnames(g) <- as.character(pos[,2])
+rownames(g) <- as.character(ind[,1])
+
+g1 <- g[1:50, 1:7] #Look at 50 individuals and 7 SNPs
+
+```
+<br>
+<br>
+
+For the individual IDs, let's extract only the characters in front of the underscore. There are many ways we can do this, and here is one that is slightly different from what we used earlier. It uses the `sub( )` function. 
+
+```{r}
+g1_new_IDs <- sub(pattern = "_.*", replacement = "", x = row.names(g1)) # Another way to extract a substring
+
+g2 <- cbind(g1_new_IDs, g1) #cbind the g1_new_IDs first, so that are added as first column instead of last columns
+
+head(g2)
+```
+<br>
+<br>
+
+Now I'm going to simulate some play expression data for two brain regions, and put it in a dataframe called `e`. Since I don't have the expression data, I'm going use the `rnorm( )` function to simulate 50 values for each region that will serve as placeholder-experssion-values for now. You can ignore the specifics of this function for now.  
+
+```{r}
+
+region1 <- rnorm(n=50, mean = 10000, sd = 3000) # Vector of simulated values for region1
+region2 <- rnorm(n=50, mean = 5000, sd = 1500) # Vector of simulated values for region2
+
+e <- data.frame(g1_new_IDs, region1, region2) # data.frame() formats each of the 3 vectors into columns of a dataframe we're calling `e`.
+
+head(e)
+
+```
+<br>
+<br>
+
+
+# Merging genotype and phenotype data frames
+Now that we have data frames containing either genotype or phenotype data (and for the purposes of this example, I'm assuming that the IDs/Names in each data frame perfectly correspond to each other), we can now merge them.  
+
+We want to create a single, master data frame that will contain no more than 1 row for each Animal ID. Each column will contain either the expression values for a region, averages, other important factors like sex, or SNP data.  
+
+```{r}
+
+merged.data <- merge(x= e, y= g2, by="g1_new_IDs") # We can add all=TRUE, if we want every 
+
+head(merged.data) # When working with the full data set, you may only want to print a subset of the columns from your merged.data data frame so that your screen does not fill up with 1000+ columns of SNP data (i.e. merged.data[,1:15] )
+
+```
+<br>
+<br>
+
+# Inspecting the data
+It is probably a good idea at this point to create a histogram and check whether our responses variables (the expression at each region) have a normal distribution or not (bell-shaped curve). If we find distributions that look extremeley skewed, or identify extreme outliers, we will want to pause and investigate before moving on to the linear modeling.  
+
+```{r}
+hist(merged.data$region1) #histogram for region1
+
+```
+```{r}
+hist(merged.data$region2) #histogram for region2
+
+```
+<br>
+<br>
+
+#Running a linear model, using `lm( )`
+Since the distributions looks good, now we are ready to run a linear model to test the relationship between genotype at a single SNP position and expression at a brain region. We begin by doing this for a single SNP and a single brain region, using the `lm( )` function.   
+
+```{r}
+
+fit <- lm( region1 ~ merged.data[,4], data= merged.data) # merged.data[,4] Refers to the first column containing SNP data in my data frame. You coould also have used the $ way of specifying a column.
+```
+
+
+### What is this model doing? Plot it!
+This model is basically finding the best fit line between all the observations we have on the # of copies of an allele and expression values. We can actually plot this best fit line for each SNP. Steeper lines mean a larger effect of genotype on expression.  
+
+
+```{r}
+plot(merged.data[,4], region1) # Plots all our observations, each dot represents an animal
+
+abline(fit, col="red") # Adds the best-fit line (in red) to our plot, calculated from our model.
+
+```
+<br>
+<br>
+
+The `lm( )` function only runs the linear model. It will not summarize what the results of the linear model are. To see the results, we must use the `summary( )` function. We can use `summary( )` around the object we assigned to the `lm()`. Or we can just use `summary( )` around the entire `lm( )` function. It will give us the same output.  
+
+
+```{r}
+summary(fit) 
+
+#Alternatively, we could write this: 
+summary(lm( region1 ~ merged.data[,4], data= merged.data))
+```
+<br>
+<br>
+
+
+## Subsetting $r^2$ and p-values from the summary
+As you can tell from the output above, the summary prints out a lot of stuff, and we are interested in extracting only a few values. Let's pull out only the p-value associated with this SNP (the p-value in the row that says "merged.data[,4]" ), and also the overall R-squared value.  
+
+```{r}
+
+# Extract p-value
+
+summary(fit)$coefficients[8] # the pvalue is the 8th number in the "Coefficients" section of the summary output. Its position is determined by counting down each column before continuing to the next column (e.g. the Intercept's t value would correspond to $coefficients[5].)
+
+
+# Extract overall r-squared
+summary(fit)$r.squared
+
+```
+<br>
+<br>
+
+# Looping through all the SNPs
+
+We don't want to run an individual model for each SNP, so we need to use a looping function. We will use the `apply( )` function (not `lapply( )`, sorry). 
+
+The function `apply( )` takes these arguments, separated by commas unless otherwise specified: 
+
+* (1) Specify what part of the data you want it to cycle through. In this case, it will be every column with SNP data. 
+
+* (2) Write `MARGIN=2`. The `2` stands for column. This tells `apply()` that you want it to loop through the different *columns* of the data you specified. 
+
+* (3) Write `function(x)` and do not put a comma after this! Follow this with only a space. This is just how we signal to `apply()` that we're about to tell it what function(s) to use as it loops. 
+
+* (4) We will then insert our `lm( )`, but in place of a single SNP column, we will use a lowercase `x`. 
+
+* (5) finally, we can tell it very explicitly what data frame to use by writing `data = merged.data`. This part is not always necessary. If you start to get a bunch of errors when you try to run your model, sometimes it can help to add `na.action = na.exlude` as a final argument. This will fix errors related to missing data that may trip up the model.  
+
+Let's run `apply()` through all the SNPs in our dataset:   
+
+```{r}
+many.fits <- apply(merged.data[,4:10], MARGIN=2, function(x) lm(x ~ region1, data= merged.data))
+```
+
+The above `apply( )` function will run--but we really want to loop through models for all the SNPs AND at the same time have `apply( )` gives us summary of each model. We also want to extract only the p-values and r squared values form the summaries. 
+<br>
+<br>
+
+###Try the following:
+
+* (1) Incorporate `summary()` into the `apply()` above
+* (2) Then, run two separate `apply()` functions, saving the output as distinct objects: Create one that will pull out the p-value for all the models. And a second one that will pull out the r.squared values. You should end up with a vector of p-values and a vector of r.squared values. 
+* (3) Combine the p-value and r.squared vectors into a single data frame.
+* (4) Make the SNP positions, the row names of these data frames. (Hint: You will need to first save the column names of `merged.data` as an object). 
+
+<br>
+<br>
+
+# Incorporate sex as an interaction
+
+I don't have `sex` as a variable in this simulated data set, but we can test to see whether there is a significant interaction, but changing our `lm( )`. You will multiply your "SNP" by `sex` with an `*` before the `~`. 
+
+
+
+<br>
+<br>
+<br>
+<br>
+
+# Crash course on using` MCMCglmm( )`
+
+Here's what we'll use to get started with MCMCglmm(). Install these packages if you don't already have them and then load. We will also need the pedigree data. 
+
+We'll also use something called a `prior`. More on that later.  
+
+```{r, results='hide'}
+library(MCMCglmm)
+library(pedigreemm)
+library(parallel)
+
+pedigree <-read.csv(file="~/Documents/Behavioral Genetics Study/R Projects/Heritability/ped_dd.csv")
+
+
+#Setting a prior. These are default parameteres that we will start off with. 
+prior <- list(R=list(V=1, nu=0.002), G=list(G1=list(V=1, nu=0.002)))
+
+```
+<br>
+<br>
+
+To run one `MCMCglmm` to evaluate a single SNP's association with expression would look like this. We can separate the arguments onto different lines to help make it more readable, but running it all on the same line would also work. 
+
+
+```{r, eval = FALSE}
+
+mcmc1 <- MCMCglmm( snp_of_interest ~ region1, # the "fixed effects" part of the model. 
+                        random= ~Animal, # Incorporates pedigree ID
+                        family= "gaussian", # Tells we're using normally-distributed (aka "Gaussian") data
+                         data= merged.data, pedigree= pedigree, # dataframe and pedigree we want to use
+                            nitt= 1000000, burnin= 50000, thin= 500, # more on this later
+                            prior= prior ) # what we specified earlier
+
+    summary(mcmc1) #results! 
+
+```
+
+
+We'll disect this output more later. I'm skipping some important diagnostics tests we'll have to run on our `mcmc1` object. 
+
+<br>
+<br>
+
+# Looping MCMCglmm through all our SNPs
+
+`MCMCglmm`s can take a long time to run. We should not run this on all the SNPs we have until we have filtered the SNPS through the LD pruning and have a smaller set of them. But, we can still create a vector of just a few SNPs that we can run, just to make sure everything is working. 
+
+
+For example: 
+
+```{r}
+snps <- c("201501", "203254", "209958", "210858", "211385", "211980", "212087", "212570", "213026", "213106", "213739", "225727", "225814", "234447") # 14 Lani Snps. 
+
+```
+
+
+Something like what's below is what would apply a MCMCglmm model on all 14 nnps in a vector `snps`. You can see that the funtion we use is kind of like a hybrid of `mcmcglmm()` and `apply()`. Here it's written in a single line, but we could have broken it up like before. 
+
+
+```{r, eval = FALSE}
+
+fit_mcmc <- mclapply(snps, FUN=function(x) MCMCglmm(as.formula(paste0("region1~",x)), random=~Animal, data=merged.data, family="gaussian", prior= prior, pedigree= pedigree, nitt=10000000, burnin=10000, thin=2000), mc.cores=4)
+```
+
+
+When the model is done running, there are several diagnostic tests that need to be run in order to check the quality of the run. We'll dive more into this later.  
+
+
+```{r, eval = FALSE}
+
+#Diagnostics
+    fit_mcmc_lag <- mclapply(1:14, function(x) autocorr.diag(fit_mcmc[[x]]$VCV), mc.cores=4) 
+    lapply(1:14, function(x) plot(fit_mcmc[[x]]$Sol, sub=paste0("fit_mcmc SNP ",x)))
+    
+#Significance
+        fit_mcmc.snp.HPD<- do.call(rbind, mclapply(1:14, function(x) HPDinterval(fit_mcmc[[x]]$Sol, 0.95)[c(2,4)], mc.cores=4))
+        
+
+```
+
+
+More to come!
