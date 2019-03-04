@@ -1,0 +1,42 @@
+
+@----------------------------------------------------------@
+|        PLINK!       |     v1.07      |   10/Aug/2009     |
+|----------------------------------------------------------|
+|  (C) 2009 Shaun Purcell, GNU General Public License, v2  |
+|----------------------------------------------------------|
+|  For documentation, citation & bug-report instructions:  |
+|        http://pngu.mgh.harvard.edu/purcell/plink/        |
+@----------------------------------------------------------@
+
+Web-based version check ( --noweb to skip )
+Connecting to web...  failed connection
+
+Problem connecting to web
+
+Writing this text to log file [ plink.log ]
+Analysis started: Mon Mar  4 12:12:40 2019
+
+Options in effect:
+	--file ./Filtered/filter1_plink
+	--allow-no-sex
+
+1625 (of 1625) markers to be included from [ ./Filtered/filter1_plink.map ]
+Warning, found 95 individuals with ambiguous sex codes
+Writing list of these individuals to [ plink.nosex ]
+95 individuals read from [ ./Filtered/filter1_plink.ped ] 
+0 individuals with nonmissing phenotypes
+Assuming a disease phenotype (1=unaff, 2=aff, 0=miss)
+Missing phenotype value is also -9
+0 cases, 0 controls and 95 missing
+0 males, 0 females, and 95 of unspecified sex
+Before frequency and genotyping pruning, there are 1625 SNPs
+95 founders and 0 non-founders found
+Total genotyping rate in remaining individuals is 1
+0 SNPs failed missingness test ( GENO > 1 )
+0 SNPs failed frequency test ( MAF < 0 )
+After frequency and genotyping pruning, there are 1625 SNPs
+After filtering, 0 cases, 0 controls and 95 missing
+After filtering, 0 males, 0 females, and 95 of unspecified sex
+
+Analysis finished: Mon Mar  4 12:12:40 2019
+

@@ -18,6 +18,19 @@ p<-ggplot(data= df, aes(x=f, y=y)) +
 p
 
 
+
+#Filtering and output new .vcf
+
+system(command = "vcftools --vcf final_geno.vcf --maf 0.01 --min-meanDP 100 --minQ 1e+03 --max-missing 1 --recode --out filter1")
+
+# kept 1748 out of 4697 sites
+
+
+
+
+
+
+
 #Filter 2
 system(command = "vcftools --vcf final_geno.vcf --maf 0.01 --min-meanDP 100 --minQ 30 --max-missing 1 --012 --out ./Filtered/filter2")
 # After filtering, kept 1754 out of a possible 4697 Sites
